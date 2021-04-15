@@ -1,0 +1,13 @@
+INCLUDE zdemo_d01. "class report def
+INCLUDE zdemo_d04. "class model def
+INCLUDE zdemo_d02. "class view def
+INCLUDE zdemo_d03. "class handler def
+INCLUDE zdemo_d05. "class export def
+INCLUDE zmm_low_reserve_new_d06. "class import def
+
+INCLUDE zdemo_i01. "class report impl
+INCLUDE zdemo_i04. "class model impl
+INCLUDE zdemo_i02. "class view impl
+INCLUDE zdemo_i03. "class handler impl
+INCLUDE zdemo_i05. "class export impl
+INCLUDE zdemo_i06. "class import impl
