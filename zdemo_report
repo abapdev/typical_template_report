@@ -1,7 +1,204 @@
-REPORT zdemo.
+*&---------------------------------------------------------------------*
+*& Report ZDEMO_LOG
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zdemo_log.
+"include top
+CLASS lcl_report DEFINITION DEFERRED.
+CLASS lcl_model  DEFINITION DEFERRED.
+CLASS lcl_view   DEFINITION DEFERRED.
+DATA:
+  go_report TYPE REF TO lcl_report,
+  gs_sscr   TYPE zsdemo_sscr.
 
-INCLUDE zdemo_top. "top
-INCLUDE zdemo_s01. "sel screen
-INCLUDE zdemo_c01. "class def impl
-INCLUDE zdemo_o01. "pbo pai
-INCLUDE zdemo_e01. "events
+"include SELECTION SCREEN
+SELECTION-SCREEN BEGIN OF BLOCK b01 WITH FRAME TITLE TEXT-001.
+  PARAMETERS:
+              p_flag TYPE flag  MODIF ID flg.
+  SELECT-OPTIONS:
+              r_int FOR gs_sscr-int.
+SELECTION-SCREEN END   OF BLOCK b01.
+
+"include class_def
+CLASS lcl_report DEFINITION CREATE PRIVATE.
+  PUBLIC SECTION.
+    TYPES:
+      BEGIN OF ts_sscr,
+        p_flag TYPE zsdemo_sscr-flag,
+        r_int  TYPE RANGE OF zsdemo_sscr-int,
+      END OF ts_sscr.
+
+    CLASS-METHODS:
+      class_constructor,
+      get_instance  RETURNING VALUE(ro_singleton) TYPE REF TO lcl_report,
+      at_selection_screen,
+      run_report,
+      view_data,
+      add_log_mes
+        IMPORTING
+          it_log TYPE bapiret2_t,
+      save_log,
+      show_log.
+
+  PRIVATE SECTION.
+    CONSTANTS:
+      c_object_log    TYPE  balobj_d  VALUE 'ZDEMO_LOG',
+      c_subobject_log TYPE  balsubobj  VALUE 'LOG_01'.
+
+    CLASS-DATA:
+      mco_model      TYPE REF TO lcl_model,
+      mco_view       TYPE REF TO lcl_view,
+      mco_logger     TYPE REF TO zcldev_log,
+      mcs_sscr       TYPE ts_sscr,
+      mco_instance   TYPE REF TO lcl_report,
+      mcv_log_number TYPE balnrext.
+
+    CLASS-METHODS:
+      set_sscr,
+      check_sscr
+        RETURNING VALUE(rv_success) TYPE flag,
+      select_data.
+
+
+ENDCLASS.
+CLASS lcl_model DEFINITION.
+  PUBLIC SECTION.
+    METHODS:
+      constructor
+        IMPORTING
+          is_sscr TYPE lcl_report=>ts_sscr,
+      run_select.
+  PRIVATE SECTION.
+    METHODS:
+      post.
+
+ENDCLASS.
+CLASS lcl_view DEFINITION.
+  PUBLIC SECTION.
+    METHODS:
+      constructor IMPORTING
+                    io_model TYPE REF TO lcl_model,
+      show_alv.
+ENDCLASS.
+
+"include class_impl
+CLASS lcl_report IMPLEMENTATION.
+  METHOD get_instance.
+    IF mco_instance IS NOT BOUND.
+      CREATE OBJECT mco_instance.
+    ENDIF.
+    ro_singleton = mco_instance.
+  ENDMETHOD.
+  METHOD class_constructor.
+    "
+    mcv_log_number = |{ sy-timlo }/{ sy-datlo }|.
+    mco_logger = NEW #( iv_object    = |{ c_object_log }|
+                        iv_subobject = |{ c_subobject_log }|
+                        iv_extnumber = mcv_log_number       ).
+  ENDMETHOD.
+  METHOD set_sscr.
+    DATA:
+          lt_params TYPE TABLE OF rsparams.
+
+    CALL FUNCTION 'RS_REFRESH_FROM_SELECTOPTIONS'
+      EXPORTING
+        curr_report     = sy-repid
+      TABLES
+        selection_table = lt_params.
+
+*    mcs_sscr.
+  ENDMETHOD.
+  METHOD at_selection_screen.
+    "
+  ENDMETHOD.
+  METHOD check_sscr.
+    set_sscr( ).
+    IF 1 = 1.
+      rv_success = 'X'.
+    ELSE.
+      MESSAGE s601(zfi_messages) DISPLAY LIKE 'E'.
+    ENDIF.
+  ENDMETHOD.
+  METHOD run_report.
+    CHECK check_sscr( ).
+    select_data( ).
+  ENDMETHOD.
+  METHOD select_data.
+    mco_model = NEW #( is_sscr = mcs_sscr ).
+    mco_model->run_select( ).
+  ENDMETHOD.
+  METHOD view_data.
+    CHECK mco_model IS BOUND.
+    mco_view = NEW #( mco_model ).
+    mco_view->show_alv( ).
+  ENDMETHOD.
+  METHOD add_log_mes.
+    LOOP AT it_log ASSIGNING FIELD-SYMBOL(<ls_log>)." WHERE type = 'E'.
+      mco_logger->msg_add(
+        EXPORTING
+          is_msg_bapiret2   =  <ls_log>               " Параметр возврата
+        EXCEPTIONS
+          msg_inconsistent  = 1                " описание msg неконсистентно
+          log_is_full       = 2                " число сообщений достигло 999999, достигнут максимум
+          OTHERS            = 3    ).
+      IF sy-subrc <> 0.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+  METHOD save_log.
+    IF mco_logger->msg_count( ) > 0.
+      mco_logger->db_save( EXPORTING i_save_all = 'X'
+                           EXCEPTIONS err_save = 1 ).
+    ENDIF.
+  ENDMETHOD.
+  METHOD show_log.
+    CHECK mco_logger IS BOUND.
+    mco_logger->db_show(
+      EXPORTING
+        it_log_handle =  mco_logger->db_load(
+                 iv_object    = |{ c_object_log }|
+                 iv_subobject = |{ c_subobject_log }|
+                 iv_extnumber = mcv_log_number
+*                           iv_lognumber =
+                         )                 " Журнал приложений: таблица с ид. журнала
+*        is_profile    =                  " Журнал приложения: профиль форматирования для вывода журн.
+    ).
+  ENDMETHOD.
+ENDCLASS.
+CLASS lcl_model IMPLEMENTATION.
+  METHOD constructor.
+    "
+  ENDMETHOD.
+  METHOD run_select.
+    "
+  ENDMETHOD.
+  METHOD post.
+    "
+    go_report->save_log( ).
+    go_report->show_log( ).
+  ENDMETHOD.
+ENDCLASS.
+CLASS lcl_view IMPLEMENTATION.
+  METHOD constructor.
+    "
+  ENDMETHOD.
+  METHOD show_alv.
+    "
+  ENDMETHOD.
+ENDCLASS.
+
+
+"include events
+
+INITIALIZATION.
+  go_report = lcl_report=>get_instance( ).
+
+AT SELECTION-SCREEN.
+  go_report->at_selection_screen( ).
+
+START-OF-SELECTION.
+  go_report->run_report( ).
+
+END-OF-SELECTION.
+  go_report->view_data(  ).
