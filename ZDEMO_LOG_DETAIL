@@ -1,0 +1,58 @@
+REPORT zdemo_log_detail.
+
+START-OF-SELECTION.
+  PERFORM main.
+
+FORM main.
+  DATA ls_log TYPE bal_s_log.
+  DATA ls_msg TYPE bal_s_msg.
+  DATA lv_hnd TYPE balloghndl.
+  DATA lt_hnd TYPE bal_t_logh.
+  DATA ls_param TYPE bal_s_par.
+  DATA lv_dummy TYPE string.
+
+  ls_log-aluser = sy-uname.
+  ls_log-extnumber = 'Журнал приложений'.
+
+
+  CALL FUNCTION 'BAL_LOG_CREATE'
+    EXPORTING
+      i_s_log      = ls_log
+    IMPORTING
+      e_log_handle = lv_hnd.
+
+  MESSAGE w191(bl) INTO lv_dummy.
+  ls_msg-msgty = sy-msgty.
+  ls_msg-msgid = sy-msgid.
+  ls_msg-msgno = sy-msgno.
+  ls_msg-msgv1 = sy-msgv1.
+  ls_msg-msgv2 = sy-msgv2.
+  ls_msg-msgv3 = sy-msgv3.
+  ls_msg-msgv4 = sy-msgv4.
+  ls_msg-params-callback-userexitp = sy-repid.
+  ls_msg-params-callback-userexitf = 'CALLBACK'.
+  ls_param-parname = 'PAR'.
+  ls_param-parvalue = 'Hello, world!'.
+  APPEND ls_param TO ls_msg-params-t_par.
+
+  CALL FUNCTION 'BAL_LOG_MSG_ADD'
+    EXPORTING
+      i_s_msg      = ls_msg
+      i_log_handle = lv_hnd.
+
+
+  APPEND lv_hnd TO lt_hnd.
+
+  CALL FUNCTION 'BAL_DSP_LOG_DISPLAY'
+    EXPORTING
+      i_t_log_handle = lt_hnd.
+ENDFORM.
+
+FORM callback TABLES i_t_params TYPE bal_t_par.
+  DATA ls_param TYPE bal_s_par.
+
+  READ TABLE i_t_params INTO ls_param WITH KEY parname = 'PAR'.
+  CHECK sy-subrc EQ 0.
+
+  MESSAGE ls_param-parvalue TYPE rs_c_info.
+ENDFORM.
