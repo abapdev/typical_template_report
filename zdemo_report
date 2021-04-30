@@ -39,7 +39,9 @@ CLASS lcl_report DEFINITION CREATE PRIVATE.
         IMPORTING
           it_log TYPE bapiret2_t,
       save_log,
-      show_log.
+      create_new_log,
+      show_log,
+      post.
 
   PRIVATE SECTION.
     CONSTANTS:
@@ -68,10 +70,11 @@ CLASS lcl_model DEFINITION.
       constructor
         IMPORTING
           is_sscr TYPE lcl_report=>ts_sscr,
-      run_select.
+      run_select,
+      post.
   PRIVATE SECTION.
     METHODS:
-      post.
+      calculate.
 
 ENDCLASS.
 CLASS lcl_view DEFINITION.
@@ -92,10 +95,6 @@ CLASS lcl_report IMPLEMENTATION.
   ENDMETHOD.
   METHOD class_constructor.
     "
-    mcv_log_number = |{ sy-timlo }/{ sy-datlo }|.
-    mco_logger = NEW #( iv_object    = |{ c_object_log }|
-                        iv_subobject = |{ c_subobject_log }|
-                        iv_extnumber = mcv_log_number       ).
   ENDMETHOD.
   METHOD set_sscr.
     DATA:
@@ -157,13 +156,21 @@ CLASS lcl_report IMPLEMENTATION.
     mco_logger->db_show(
       EXPORTING
         it_log_handle =  mco_logger->db_load(
-                 iv_object    = |{ c_object_log }|
-                 iv_subobject = |{ c_subobject_log }|
-                 iv_extnumber = mcv_log_number
-*                           iv_lognumber =
-                         )                 " Журнал приложений: таблица с ид. журнала
-*        is_profile    =                  " Журнал приложения: профиль форматирования для вывода журн.
-    ).
+        iv_object     = |{ c_object_log }|
+        iv_subobject  = |{ c_subobject_log }|
+        iv_extnumber  = mcv_log_number ) ).
+  ENDMETHOD.
+  METHOD post.
+    create_new_log( ).
+    mco_model->post( ).
+    save_log( ).
+    show_log( ).
+  ENDMETHOD.
+  METHOD create_new_log.
+    mcv_log_number = |{ sy-timlo }/{ sy-datlo }|.
+    mco_logger = NEW #( iv_object    = |{ c_object_log }|
+                        iv_subobject = |{ c_subobject_log }|
+                        iv_extnumber = mcv_log_number       ).
   ENDMETHOD.
 ENDCLASS.
 CLASS lcl_model IMPLEMENTATION.
@@ -173,10 +180,11 @@ CLASS lcl_model IMPLEMENTATION.
   METHOD run_select.
     "
   ENDMETHOD.
+  METHOD calculate.
+    "
+  ENDMETHOD.
   METHOD post.
     "
-    go_report->save_log( ).
-    go_report->show_log( ).
   ENDMETHOD.
 ENDCLASS.
 CLASS lcl_view IMPLEMENTATION.
